@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimalCard } from "@/components/AnimalCard";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface Breed {
   name: string;
@@ -9,37 +9,33 @@ interface Breed {
 }
 
 export default function Home() {
-
   const [breeds, setBreeds] = useState<Breed[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(20);
+
+  const loaderRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     const fetchBreeds = async () => {
-      setLoading(true);
-      setError(null);
       try {
         const res = await fetch("https://dog.ceo/api/breeds/list/all");
-        if (!res.ok) throw new Error("Failed to fetch breeds");
-
         const data = await res.json();
         const names = Object.keys(data.message);
 
         const breedData: Breed[] = await Promise.all(
           names.map(async (name) => {
-            try {
-              const imgRes = await fetch(`https://dog.ceo/api/breed/${name}/images/random`);
-              const imgData = await imgRes.json();
-              return { name, imageUrl: imgData.message };
-            } catch {
-              return { name, imageUrl: "/img/card-top.jpg" }; // fallback
-            }
+            const imgRes = await fetch(
+              `https://dog.ceo/api/breed/${name}/images/random`
+            );
+            const imgData = await imgRes.json();
+            return { name, imageUrl: imgData.message };
           })
         );
 
         setBreeds(breedData);
-      } catch (err: any) {
-        setError(err.message || "Unknown error");
+      } catch (err) {
+        setError((err as Error).message);
       } finally {
         setLoading(false);
       }
@@ -47,6 +43,26 @@ export default function Home() {
 
     fetchBreeds();
   }, []);
+
+
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      const entry = entries[0];
+      if (entry.isIntersecting) {
+        setVisibleCount((prev) => prev + 20);
+      }
+
+    },
+      { threshold: 0.1, rootMargin: "200px", root: null }
+    );
+
+    const currentLoader = loaderRef.current;
+    if (currentLoader) observer.observe(currentLoader);
+
+    return () => {
+      if (currentLoader) observer.unobserve(currentLoader);
+    };
+  }, [breeds]);
 
 
   return (
@@ -57,14 +73,22 @@ export default function Home() {
       {error && <p className="text-red-500">{error}</p>}
 
       {!loading && !error && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 w-full max-w-6xl">
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 w-full max-w-6xl">
+            {breeds.slice(0, visibleCount).map((breed) => (
+              <AnimalCard
+                key={breed.name}
+                name={breed.name}
+                imageUrl={breed.imageUrl}
+              />
+            ))}
+          </div>
 
-          {breeds.slice(0, 10).map((breed) => (
-            <AnimalCard name={breed.name} imageUrl={breed.imageUrl} key={breed.name} />
 
-          ))}
-
-        </div>
+          <div ref={loaderRef} className="h-10 mt-10">
+            Loading more dogs...
+          </div>
+        </>
       )}
     </div>
   );
