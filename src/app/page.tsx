@@ -2,10 +2,10 @@
 
 import { AnimalCard } from "@/components/AnimalCard";
 import { useEffect, useRef, useState } from "react";
+import { getAllBreeds } from "@/api/dog";
 
 interface Breed {
   name: string;
-  imageUrl: string;
 }
 
 export default function Home() {
@@ -19,21 +19,8 @@ export default function Home() {
   useEffect(() => {
     const fetchBreeds = async () => {
       try {
-        const res = await fetch("https://dog.ceo/api/breeds/list/all");
-        const data = await res.json();
-        const names = Object.keys(data.message);
-
-        const breedData: Breed[] = await Promise.all(
-          names.map(async (name) => {
-            const imgRes = await fetch(
-              `https://dog.ceo/api/breed/${name}/images/random`
-            );
-            const imgData = await imgRes.json();
-            return { name, imageUrl: imgData.message };
-          })
-        );
-
-        setBreeds(breedData);
+        const breedsData = await getAllBreeds();
+        setBreeds(breedsData);
       } catch (err) {
         setError((err as Error).message);
       } finally {
@@ -79,7 +66,6 @@ export default function Home() {
               <AnimalCard
                 key={breed.name}
                 name={breed.name}
-                imageUrl={breed.imageUrl}
               />
             ))}
           </div>
